@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Video - 정식 서비스</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-storage-compat.js"></script>
+
+    <style>
+        :root { --main-red: #e94560; --bg-dark: #050505; --card-bg: #16213e; }
+        body { font-family: 'Malgun Gothic', sans-serif; background: var(--bg-dark); color: white; margin: 0; }
+        
+        /* 헤더 */
+        header { background: #1a1a2e; padding: 15px 5%; border-bottom: 2px solid var(--main-red); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; }
+        .logo { color: var(--main-red); cursor: pointer; text-shadow: 0 0 10px var(--main-red); margin:0; }
+        .btn { background: var(--main-red); border: none; color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        
+        /* 레이아웃 */
+        .container { padding: 20px 5%; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .v-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; cursor: pointer; border: 1px solid #222; transition: 0.3s; }
+        .v-card:hover { transform: translateY(-5px); border-color: var(--main-red); }
+        .v-card img { width: 100%; height: 150px; object-fit: cover; }
+
+        /* 플레이어 및 광고 */
+        .player-box { width: 100%; max-width: 850px; aspect-ratio: 16/9; background: #000; margin: 0 auto 20px; position: relative; border-radius: 15px; overflow: hidden; }
+        #ad-box { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:100; }
+
+        /* 모달(로그인/회원가입) */
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:2000; }
+        .modal-content { background:#1a1a2e; padding:30px; border-radius:20px; border:2px solid var(--main-red); width:300px; text-align:center; }
+        input { width:90%; padding:10px; margin:10px 0; border-radius:5px; border:none; background:#0f3460; color:white; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h2 class="logo" onclick="location.reload()">★ Star Video</h2>
+    <div id="auth-section">
+        <button class="btn" onclick="openModal('login-modal')">로그인</button>
+        <button class="btn" style="background:#444;" onclick="openModal('signup-modal')">회원가입</button>
+    </div>
+    <div id="user-section" style="display:none; align-items:center; gap:15px;">
+        <span id="user-nick">별빛님</span>
+        <button class="btn" style="background:#4caf50;" onclick="document.getElementById('file-input').click()">영상 업로드</button>
+        <button onclick="location.reload()" style="background:none; border:none; color:#aaa; cursor:pointer;">로그아웃</button>
+    </div>
+</header>
+
+<div class="container">
+    <div class="player-box">
+        <div id="ad-box">
+            <h2 style="color:var(--main-red)">AD: 프리미엄 광고</h2>
+            <p id="ad-timer">5초 후 영상이 시작됩니다</p>
+            <button id="skip-btn" disabled class="btn" style="background:#555;">건너뛰기</button>
+        </div>
+        <div id="video-display" style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#555;">영상을 선택해 주세요</div>
+    </div>
+
+    <h3>추천 콘텐츠 (서버 실시간)</h3>
+    <div class="video-grid" id="main-grid"></div>
+</div>
+
+<div id="login-modal" class="modal"><div class="modal-content">
+    <h2>로그인</h2>
+    <input type="text" id="l-id" placeholder="아이디">
+    <input type="password" id="l-pw" placeholder="비밀번호">
+    <button class="btn" style="width:100%" onclick="handleLogin()">시작하기</button>
+    <p onclick="closeModal('login-modal')" style="cursor:pointer; font-size:12px; color:#aaa; margin-top:15px;">닫기</p>
+</div></div>
+
+<div id="signup-modal" class="modal"><div class="modal-content">
+    <h2 style="color:#4caf50">회원가입</h2>
+    <input type="text" id="s-id" placeholder="아이디">
+    <input type="text" id="s-nick" placeholder="채널 닉네임">
+    <input type="password" id="s-pw" placeholder="비밀번호">
+    <button class="btn" style="width:100%; background:#4caf50;" onclick="handleSignup()">가입 완료</button>
+    <p onclick="closeModal('signup-modal')" style="cursor:pointer; font-size:12px; color:#aaa; margin-top:15px;">닫기</p>
+</div></div>
+
+<input type="file" id="file-input" style="display:none" accept="video/*">
+
+<script>
+    // --- 1. Firebase 설정 (사용자님 정보 적용됨) ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyA-Qkz57KR0i55lTbrsu0rZk282-ma_4MA",
+        authDomain: "star-vidio.firebaseapp.com",
+        projectId: "star-vidio",
+        storageBucket: "star-vidio.firebasestorage.app",
+        messagingSenderId: "1035567764991",
+        appId: "1:1035567764991:web:4fd92a5591da039da503ca",
+        measurementId: "G-NW7NBCCPPC"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    let currentUser = null;
+
+    // --- 2. 모달 제어 ---
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    // --- 3. 서버 연동 회원가입/로그인 ---
+    async function handleSignup() {
+        const id = document.getElementById('s-id').value;
+        const nick = document.getElementById('s-nick').value;
+        const pw = document.getElementById('s-pw').value;
+        if(!id || !nick || !pw) return alert("다 입력해 주세요!");
+
+        await db.collection("users").doc(id).set({ id, nick, pw });
+        alert("회원가입 성공! 로그인 하세요.");
+        closeModal('signup-modal');
+        openModal('login-modal');
+    }
+
+    async function handleLogin() {
+        const id = document.getElementById('l-id').value;
+        const pw = document.getElementById('l-pw').value;
+        const doc = await db.collection("users").doc(id).get();
+        
+        if(doc.exists && doc.data().pw === pw) {
+            currentUser = doc.data();
+            document.getElementById('auth-section').style.display = 'none';
+            document.getElementById('user-section').style.display = 'flex';
+            document.getElementById('user-nick').innerText = currentUser.nick + " 채널";
+            closeModal('login-modal');
+        } else { alert("아이디 또는 비번이 틀려요!"); }
+    }
+
+    // --- 4. 영상 업로드 (서버 저장) ---
+    document.getElementById('file-input').onchange = async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        alert("서버에 전송 중... 잠시만 기다려주세요!");
+        const ref = storage.ref('videos/' + Date.now() + "_" + file.name);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+
+        await db.collection("videos").add({
+            title: file.name,
+            url: url,
+            uploader: currentUser.nick,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        alert("업로드 완료! 2개월 후 초기화 대상에 포함됩니다.");
+    };
+
+    // --- 5. 영상 불러오기 & 광고 ---
+    db.collection("videos").orderBy("createdAt", "desc").onSnapshot(snap => {
+        const grid = document.getElementById('main-grid');
+        grid.innerHTML = '';
+        snap.forEach(doc => {
+            const v = doc.data();
+            const div = document.createElement('div');
+            div.className = 'v-card';
+            div.innerHTML = `<img src="https://via.placeholder.com/300x170/16213e/fff?text=Star+Video"><div style="padding:10px;"><h4>${v.title}</h4><p>${v.uploader}</p></div>`;
+            div.onclick = () => startPlay(v);
+            grid.appendChild(div);
+        });
+    });
+
+    function startPlay(v) {
+        const ad = document.getElementById('ad-box');
+        const skip = document.getElementById('skip-btn');
+        ad.style.display = 'flex';
+        let time = 5;
+        
+        const timer = setInterval(() => {
+            time--;
+            document.getElementById('ad-timer').innerText = time + "초 후 영상이 시작됩니다";
+            if(time <= 0) {
+                clearInterval(timer);
+                skip.disabled = false;
+                skip.style.background = "#e94560";
+                skip.innerText = "광고 건너뛰기";
+            }
+        }, 1000);
+
+        skip.onclick = () => {
+            ad.style.display = 'none';
+            document.getElementById('video-display').innerHTML = `<video src="${v.url}" controls autoplay style="width:100%; height:100%;"></video>`;
+        };
+    }
+</script>
+</body>
+</html>
