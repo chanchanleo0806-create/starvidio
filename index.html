@@ -14,32 +14,25 @@
         :root { --main-red: #e94560; --bg-dark: #050505; --yellow: #fee500; --card-bg: #16213e; }
         body { font-family: 'Malgun Gothic', sans-serif; background: var(--bg-dark); color: white; margin: 0; overflow: hidden; }
         
-        /* 네비게이션 바 */
+        /* 네비게이션 */
         nav { position: fixed; bottom: 0; width: 100%; height: 60px; background: #1a1a2e; display: flex; justify-content: space-around; align-items: center; border-top: 2px solid var(--main-red); z-index: 1000; }
-        nav div { cursor: pointer; font-size: 22px; transition: 0.2s; }
-        nav div:hover { transform: scale(1.2); color: var(--main-red); }
+        nav div { cursor: pointer; font-size: 22px; color: #888; }
+        nav div.active { color: var(--main-red); }
 
-        /* 섹션 관리 */
         .section { display: none; height: calc(100vh - 60px); overflow-y: auto; padding: 20px; }
         .section.active { display: block; }
 
-        /* 비디오 그리드 */
+        /* 비디오 UI */
         .v-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
         .v-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid #333; }
-        .v-card video { width: 100%; height: 110px; object-fit: cover; background: #000; }
-        .v-info { padding: 10px; font-size: 13px; }
+        .v-card video { width: 100%; height: 110px; object-fit: cover; }
 
         /* 채팅 UI */
         #chat-window { position: fixed; inset: 0; background: #abc1d1; display: none; flex-direction: column; z-index: 2000; color: #000; }
         #chat-view { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        .bubble { padding: 8px 12px; border-radius: 12px; font-size: 14px; max-width: 80%; line-height: 1.4; }
-        .me { align-self: flex-end; background: var(--yellow); border-top-right-radius: 2px; }
-        .you { align-self: flex-start; background: #fff; border-top-left-radius: 2px; }
-
-        /* 쇼츠 레이아웃 */
-        #shorts-container { position: fixed; inset: 0; background: #000; display: none; z-index: 3000; flex-direction: column; overflow-y: scroll; scroll-snap-type: y mandatory; }
-        .short-wrapper { width: 100%; height: 100vh; scroll-snap-align: start; display: flex; justify-content: center; align-items: center; position: relative; }
-        .short-wrapper video { height: 100%; max-width: 100%; object-fit: cover; }
+        .bubble { padding: 8px 12px; border-radius: 12px; font-size: 14px; max-width: 80%; }
+        .me { align-self: flex-end; background: var(--yellow); }
+        .you { align-self: flex-start; background: #fff; }
 
         /* 로그인 모달 */
         .modal { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 5000; }
@@ -51,11 +44,11 @@
 
 <div id="auth-ui" class="modal">
     <div class="modal-content">
-        <h2 style="color:var(--main-red); margin-bottom:20px;">STAR VIDEO & TALK</h2>
+        <h2 style="color:var(--main-red)">STAR PLATFORM</h2>
         <input type="text" id="log-id" placeholder="아이디">
         <input type="password" id="log-pw" placeholder="비밀번호">
-        <button onclick="handleLogin()" style="width:100%; padding:15px; background:var(--main-red); border:none; color:white; font-weight:bold; border-radius:10px; cursor:pointer; margin-top:10px;">로그인</button>
-        <p onclick="handleSignup()" style="font-size:13px; margin-top:20px; cursor:pointer; color:#aaa;">계정이 없으신가요? <span style="color:var(--main-red)">회원가입</span></p>
+        <button onclick="handleLogin()" style="width:100%; padding:15px; background:var(--main-red); color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer;">로그인</button>
+        <button onclick="handleSignup()" style="width:100%; padding:10px; background:none; color:#aaa; border:none; cursor:pointer; margin-top:10px;">회원가입</button>
     </div>
 </div>
 
@@ -63,46 +56,39 @@
     <div id="sec-video" class="section active">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 style="color:var(--main-red)">Star Video</h2>
-            <button onclick="document.getElementById('file-input').click()" style="background:#4caf50; border:none; color:white; padding:8px 15px; border-radius:8px; font-weight:bold;">영상 업로드</button>
+            <button onclick="document.getElementById('file-input').click()" style="background:#4caf50; border:none; color:white; padding:8px 15px; border-radius:8px;">업로드</button>
         </div>
         <div class="v-grid" id="video-list"></div>
     </div>
 
     <div id="sec-talk" class="section">
         <h2>Messages</h2>
-        <div id="friend-list" style="margin-top:20px;"></div>
-        <button onclick="addFriend()" style="width:100%; padding:15px; margin-top:15px; border-radius:12px; border:1px dashed #555; background:none; color:#888; cursor:pointer;">+ 친구 추가 (아이디 입력)</button>
+        <div id="friend-list"></div>
+        <button onclick="addFriend()" style="width:100%; padding:15px; margin-top:15px; border-radius:12px; border:1px dashed #555; background:none; color:#888;">+ 친구 아이디 추가</button>
     </div>
 
     <nav>
-        <div onclick="showSec('video')">🏠</div>
-        <div onclick="openShorts()">🎬</div>
+        <div onclick="showSec('video')">📺</div>
         <div onclick="showSec('talk')">💬</div>
-        <div onclick="location.reload()">🚪</div>
+        <div onclick="doLogout()">🚪</div>
     </nav>
 </div>
 
-<div id="shorts-container">
-    <div onclick="closeShorts()" style="position:fixed; top:20px; right:20px; z-index:3001; font-size:35px; cursor:pointer; color:white;">×</div>
-    <div id="shorts-list"></div>
-</div>
-
 <div id="chat-window">
-    <div style="padding:15px; background:rgba(0,0,0,0.08); display:flex; align-items:center;">
-        <button onclick="closeChat()" style="border:none; background:none; font-size:22px; cursor:pointer;">◀</button>
-        <b id="chat-target" style="margin-left:15px; font-size:18px;"></b>
+    <div style="padding:15px; background:rgba(0,0,0,0.1); display:flex; align-items:center;">
+        <button onclick="closeChat()" style="border:none; background:none; font-size:20px;">◀</button>
+        <b id="chat-target" style="margin-left:15px;"></b>
     </div>
     <div id="chat-view"></div>
-    <div style="padding:15px; background:#fff; display:flex; gap:10px; align-items:center;">
-        <input type="text" id="msg-input" style="flex:1; padding:12px; border-radius:25px; border:1px solid #ddd; outline:none; color:#000;" placeholder="메시지를 입력하세요..." onkeypress="if(event.keyCode==13) sendMsg()">
-        <button onclick="sendMsg()" style="background:var(--yellow); border:none; width:50px; height:40px; border-radius:20px; font-weight:bold; cursor:pointer;">전송</button>
+    <div style="padding:10px; background:#fff; display:flex; gap:10px;">
+        <input type="text" id="msg-input" style="flex:1; padding:10px; border-radius:20px; border:1px solid #ddd; color:#000;" placeholder="메시지..." onkeypress="if(event.keyCode==13) sendMsg()">
+        <button onclick="sendMsg()" style="background:var(--yellow); border:none; padding:10px 15px; border-radius:15px; font-weight:bold;">전송</button>
     </div>
 </div>
 
 <input type="file" id="file-input" style="display:none" accept="video/*">
 
 <script>
-    // --- 파이어베이스 설정 (Star Video 정보 추출본) ---
     const firebaseConfig = {
         apiKey: "AIzaSyA-Qkz57KR0i55lTbrsu0rZk282-ma_4MA",
         authDomain: "star-vidio.firebaseapp.com",
@@ -114,63 +100,50 @@
     };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();      // 비디오/유저 데이터
-    const rdb = firebase.database();    // 실시간 채팅/친구 데이터
-    const storage = firebase.storage(); // 비디오 파일 서버
+    const db = firebase.firestore();
+    const rdb = firebase.database();
+    const storage = firebase.storage();
 
     let currentUser = null;
     let activeRid = null;
 
-    // --- [ID 연동] 통합 회원가입 ---
-    async function handleSignup() {
+    // [핵심] 통합 회원가입 (양쪽 DB 연동)
+    window.handleSignup = async () => {
         const id = document.getElementById('log-id').value.trim().toLowerCase();
         const pw = document.getElementById('log-pw').value.trim();
-        if(!id || !pw) return alert("아이디와 비번을 입력하세요!");
+        if(!id || !pw) return alert("입력하세요!");
 
         const check = await db.collection("users").doc(id).get();
-        if(check.exists) return alert("이미 사용 중인 아이디입니다.");
+        if(check.exists) return alert("이미 있는 아이디!");
 
-        // 두 DB에 동시에 아이디 등록
         await Promise.all([
             db.collection("users").doc(id).set({id, pw, nick: id, createdAt: new Date()}),
             rdb.ref(`users/${id}`).set({id, pw})
         ]);
-        alert("🎉 회원가입 성공! 이제 로그인을 해주세요.");
-    }
+        alert("통합 가입 성공! 로그인하세요.");
+    };
 
-    // --- [ID 연동] 통합 로그인 ---
-    async function handleLogin() {
+    // [핵심] 통합 로그인 (세션 유지 추가)
+    window.handleLogin = async () => {
         const id = document.getElementById('log-id').value.trim().toLowerCase();
         const pw = document.getElementById('log-pw').value.trim();
 
         const doc = await db.collection("users").doc(id).get();
         if(doc.exists && doc.data().pw === pw) {
             currentUser = doc.data();
-            document.getElementById('auth-ui').style.display = 'none';
-            document.getElementById('main-app').style.display = 'block';
-            loadVideos();
-            loadFriends();
-        } else alert("로그인 정보가 틀립니다.");
-    }
-
-    // --- [비디오 기능] 업로드 및 목록 ---
-    document.getElementById('file-input').onchange = async (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        alert("영상을 서버로 전송 중입니다. 잠시만 기다려주세요...");
-        
-        const fileRef = storage.ref('videos/' + Date.now() + "_" + file.name);
-        await fileRef.put(file);
-        const url = await fileRef.getDownloadURL();
-        
-        await db.collection("videos").add({
-            title: file.name, url, uploader: currentUser.id, 
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            likes: 0
-        });
-        alert("✅ 업로드 완료!");
+            localStorage.setItem('star_user_id', id);
+            loginSuccess();
+        } else alert("정보가 틀립니다.");
     };
 
+    function loginSuccess() {
+        document.getElementById('auth-ui').style.display = 'none';
+        document.getElementById('main-app').style.display = 'block';
+        loadVideos();
+        loadFriends();
+    }
+
+    // 비디오 로드
     function loadVideos() {
         db.collection("videos").orderBy("createdAt", "desc").onSnapshot(snap => {
             const list = document.getElementById('video-list');
@@ -179,45 +152,34 @@
                 const v = doc.data();
                 const div = document.createElement('div');
                 div.className = 'v-card';
-                div.innerHTML = `<video src="${v.url}" muted></video>
-                    <div class="v-info"><b>${v.title}</b><br><small>By ${v.uploader}</small></div>`;
-                div.onclick = () => playVideoInShorts(v.url);
+                div.innerHTML = `<video src="${v.url}" muted></video><div style="padding:8px;font-size:12px;">${v.title}</div>`;
                 list.appendChild(div);
             });
         });
     }
 
-    // --- [쇼츠 기능] 전체화면 감상 ---
-    async function openShorts() {
-        const container = document.getElementById('shorts-container');
-        const list = document.getElementById('shorts-list');
-        container.style.display = 'flex';
-        list.innerHTML = '';
-        const snap = await db.collection("videos").get();
-        snap.forEach(doc => {
-            const div = document.createElement('div');
-            div.className = 'short-wrapper';
-            div.innerHTML = `<video src="${doc.data().url}" loop autoplay muted onclick="this.paused?this.play():this.pause()"></video>`;
-            list.appendChild(div);
+    // 파일 업로드
+    document.getElementById('file-input').onchange = async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        const ref = storage.ref('videos/' + Date.now() + "_" + file.name);
+        await ref.put(file);
+        const url = await ref.getDownloadURL();
+        await db.collection("videos").add({
+            title: file.name, url, uploader: currentUser.id, createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-    }
-    function playVideoInShorts(url) {
-        openShorts().then(() => {
-            const list = document.getElementById('shorts-list');
-            list.innerHTML = `<div class="short-wrapper"><video src="${url}" loop autoplay controls></video></div>`;
-        });
-    }
-    function closeShorts() { document.getElementById('shorts-container').style.display = 'none'; }
+        alert("업로드 완료!");
+    };
 
-    // --- [채팅 기능] 실시간 대화 ---
+    // 채팅 기능
     function showSec(id) {
         document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
         document.getElementById('sec-' + id).classList.add('active');
     }
 
     function addFriend() {
-        const fId = prompt("추가할 친구의 아이디를 정확히 입력하세요:");
-        if(fId) rdb.ref(`friends/${currentUser.id}/${fId}`).set(true);
+        const fid = prompt("친구 아이디:");
+        if(fid) rdb.ref(`friends/${currentUser.id}/${fid}`).set(true);
     }
 
     function loadFriends() {
@@ -227,8 +189,8 @@
             if(snap.exists()) {
                 Object.keys(snap.val()).forEach(fid => {
                     const d = document.createElement('div');
-                    d.style = "padding:20px; background:#16213e; border-radius:15px; margin-bottom:12px; cursor:pointer; display:flex; justify-content:space-between;";
-                    d.innerHTML = `<span>👤 <b>${fid}</b></span> <span style="color:var(--yellow)">채팅하기 ▶</span>`;
+                    d.style = "padding:15px; background:#16213e; border-radius:10px; margin-bottom:10px; cursor:pointer;";
+                    d.innerText = "👤 " + fid;
                     d.onclick = () => openChat(fid);
                     list.appendChild(d);
                 });
@@ -238,7 +200,7 @@
 
     function openChat(fid) {
         activeRid = [currentUser.id, fid].sort().join('_');
-        document.getElementById('chat-target').innerText = fid + "님과의 대화";
+        document.getElementById('chat-target').innerText = fid;
         document.getElementById('chat-window').style.display = 'flex';
         rdb.ref(`msgs/${activeRid}`).on('value', snap => {
             const v = document.getElementById('chat-view'); v.innerHTML = '';
@@ -257,14 +219,21 @@
     function sendMsg() {
         const i = document.getElementById('msg-input');
         if(!i.value.trim()) return;
-        rdb.ref(`msgs/${activeRid}`).push({ s: currentUser.id, t: i.value.trim(), time: Date.now() });
+        rdb.ref(`msgs/${activeRid}`).push({ s: currentUser.id, t: i.value.trim() });
         i.value = '';
     }
 
-    function closeChat() { 
-        if(activeRid) rdb.ref(`msgs/${activeRid}`).off();
-        document.getElementById('chat-window').style.display = 'none'; 
-    }
+    function closeChat() { document.getElementById('chat-window').style.display = 'none'; }
+    function doLogout() { localStorage.clear(); location.reload(); }
+
+    // 자동 로그인
+    window.onload = async () => {
+        const savedId = localStorage.getItem('star_user_id');
+        if (savedId) {
+            const doc = await db.collection("users").doc(savedId).get();
+            if (doc.exists) { currentUser = doc.data(); loginSuccess(); }
+        }
+    };
 </script>
 </body>
 </html>
