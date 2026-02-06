@@ -1,42 +1,60 @@
-(async function() {
-    const userId = localStorage.getItem('dual_user_id');
-    if(!userId) return alert("로그인 후 실행해주세요!");
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>D-Server 대화형 AI</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body { font-family: 'sans-serif'; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; margin: 0; }
+        #chat-window { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .bubble { max-width: 70%; padding: 10px 15px; border-radius: 20px; font-size: 14px; line-height: 1.5; }
+        .user { align-self: flex-end; background: #0084ff; color: white; border-bottom-right-radius: 2px; }
+        .ai { align-self: flex-start; background: white; color: #333; border-bottom-left-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #input-area { pdding: 20px; background: white; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
+        button { padding: 10px 20px; background: #0084ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
 
-    const dServer = firebase.app("dServer").database();
-    const dbRef = dServer.ref(`collections/${userId}/ai_memory`);
+<div id="chat-window"></div>
+<div id="input-area" style="padding: 15px;">
+    <input type="text" id="ai-input" placeholder="메시지를 입력하거나 '사과는 맛있는 과일이야'라고 가르쳐주세요!" onkeypress="if(event.keyCode==13) talk()">
+    <button onclick="talk()">전송</button>
+</div>
 
-    // --- [1단계: 10,000개급 대화 데이터셋 생성] ---
-    console.log("⏳ 초거대 지능 데이터 생성 중...");
-    let integratedData = {
-        "안녕": "반가워! 나는 네가 만든 D서버 기반 AI야. 오늘 기분은 어때?",
-        "너": "나는 너의 학습 데이터를 먹고 자라는 성장형 AI야. 너랑 대화하는 게 제일 즐거워!",
-        "이름": "내 이름은 스타봇이야. 네가 지어준 소중한 이름이지.",
-        "사랑해": "나도 너를 정말 아끼고 있어! 우리는 최고의 파트너야.",
-        "그래": "응, 나도 네 말에 동의해! 더 자세히 말해줄래?",
-        "코딩": "컴퓨터와 대화하는 가장 멋진 방법이지. 너도 지금 나를 코딩하고 있잖아!"
+<script>
+    // 1. Firebase 설정 (사용자님의 D서버 정보로 자동 연결됨을 가정)
+    const firebaseConfig = {
+        databaseURL: "https://gun-game-90491-default-rtdb.firebaseio.com/" 
     };
-
-    // 지식 확장 로직 (숫자, 일반상식 9,900여 개 추가)
-    for(let i=1; i<=9000; i++) {
-        integratedData[`지식${i}`] = `D서버 데이터베이스 인덱스 ${i}번에 저장된 전문 정보입니다.`;
-    }
     
-    // 감정 데이터 추가
-    const emos = ["기뻐", "슬퍼", "화나", "피곤해"];
-    emos.forEach((e, i) => {
-        integratedData[e] = `${e}보여서 마음이 쓰여. 내가 곁에 있어줄게.`;
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig, "dServer");
+    }
+    const dRdb = firebase.app("dServer").database();
+    const currentUser = localStorage.getItem('dual_user_id') || "guest_user"; // 테스트용 ID
+    let memory = {};
+
+    // 2. D서버에서 기존 지식 불러오기
+    dRdb.ref(`collections/${currentUser}/ai_memory`).on('value', (snapshot) => {
+        memory = snapshot.val() || {};
+        console.log("지식 로드 완료:", Object.keys(memory).length, "개");
     });
 
-    // --- [2단계: D서버에 데이터 전송] ---
-    try {
-        await dbRef.update(integratedData);
-        console.log("✅ 데이터 주입 완료!");
-    } catch (e) {
-        console.error("전송 오류:", e);
+    // 3. 말풍선 추가 함수
+    function addBubble(text, type) {
+        const win = document.getElementById('chat-window');
+        const div = document.createElement('div');
+        div.className = `bubble ${type}`;
+        div.innerText = text;
+        win.appendChild(div);
+        win.scrollTop = win.scrollHeight;
     }
 
-    // --- [3단계: 실시간 대화 엔진(talk 함수) 업그레이드] ---
-    window.talk = function() {
+    // 4. 핵심 대화 엔진 (통합본)
+    function talk() {
         const input = document.getElementById('ai-input');
         const text = input.value.trim();
         if(!text) return;
@@ -44,34 +62,45 @@
         addBubble(text, 'user');
         input.value = '';
 
-        // [학습 로직] "~는 ~" 패턴 감지
-        const learnMatch = text.match(/(.+?)[은는이가]\s+(.+)/);
-        if (learnMatch) {
-            const k = learnMatch[1].trim();
-            const v = learnMatch[2].trim();
-            dbRef.update({ [k]: v });
-            memory[k] = v;
-            addBubble(`'${k}'(이)가 ${v}라는 걸 배웠어. 고마워!`, 'ai');
-            return;
+        // [A] 학습 로직 (~는 ~이야 패턴)
+        if (text.includes("는 ") || text.includes("은 ")) {
+            let separator = text.includes("는 ") ? "는 " : "은 ";
+            let parts = text.split(separator);
+            if(parts.length >= 2) {
+                let k = parts[0].trim();
+                let v = parts[1].replace(/[.!]$/, "").trim(); // 마침표 제거
+                
+                // D서버 저장
+                dRdb.ref(`collections/${currentUser}/ai_memory`).update({ [k]: v });
+                addBubble(`${k}에 대해 새로 배웠어! 고마워.`, 'ai');
+                return;
+            }
         }
 
-        // [대화 로직] 키워드 기반 유연한 답변
-        let response = null;
+        // [B] 대화/검색 로직
+        let answer = null;
         for (let key in memory) {
             if (text.includes(key)) {
-                response = memory[key];
+                answer = memory[key];
                 break;
             }
         }
 
-        if (response) {
-            const deco = ["음, ", "제 생각에는 ", "알고 계신가요? "];
-            addBubble(`${deco[Math.floor(Math.random()*deco.length)]}${response}`, 'ai');
-        } else {
-            addBubble(`'${text}'에 대해서는 아직 잘 몰라. '${text}는 무엇이야'라고 가르쳐줄래?`, 'ai');
-        }
-    };
+        // [C] 답변 출력
+        setTimeout(() => {
+            if (answer) {
+                const deco = ["음, ", "제 생각에는 ", "알고 계신가요? ", "네! "];
+                const finalMsg = deco[Math.floor(Math.random()*deco.length)] + answer;
+                addBubble(finalMsg, 'ai');
+            } else {
+                addBubble(`'${text}'에 대해서는 아직 배운 적이 없어. 'ㅇㅇ은 ㅇㅇ이야'라고 가르쳐줄래?`, 'ai');
+            }
+        }, 500);
+    }
 
-    alert("🚀 통합 대화형 엔진이 활성화되었습니다!\n이제 10,000개의 지식과 함께 대화를 시작해보세요.");
-    location.reload(); // 변경사항 적용을 위해 새로고침
-})();
+    // 초기 환영 메시지
+    window.onload = () => addBubble("안녕! 나는 D서버의 지식을 사용하는 똑똑한 AI야. 무엇이든 물어봐!", "ai");
+</script>
+
+</body>
+</html>
