@@ -2,105 +2,185 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>D-Server 대화형 AI</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Star Video - 개인 방송 플랫폼</title>
     <style>
-        body { font-family: 'sans-serif'; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; margin: 0; }
-        #chat-window { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-        .bubble { max-width: 70%; padding: 10px 15px; border-radius: 20px; font-size: 14px; line-height: 1.5; }
-        .user { align-self: flex-end; background: #0084ff; color: white; border-bottom-right-radius: 2px; }
-        .ai { align-self: flex-start; background: white; color: #333; border-bottom-left-radius: 2px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #input-area { pdding: 20px; background: white; display: flex; gap: 10px; border-top: 1px solid #ddd; }
-        input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
-        button { padding: 10px 20px; background: #0084ff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        :root { --main-red: #ff0000; --bg-black: #0f0f0f; --card-gray: #1e1e1e; }
+        body { background-color: var(--bg-black); color: white; font-family: 'Apple SD Gothic Neo', sans-serif; margin: 0; display: flex; height: 100vh; }
+        
+        /* 레이아웃 */
+        .container { display: flex; width: 100%; }
+        .video-content { flex: 3; padding: 20px; overflow-y: auto; }
+        .chat-sidebar { flex: 1; background: #121212; border-left: 1px solid #333; display: flex; flex-direction: column; min-width: 320px; }
+
+        /* 인증 카드 */
+        .auth-card { background: var(--card-gray); padding: 20px; border-radius: 15px; margin-bottom: 20px; border: 1px solid #444; }
+        .input-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px;
+        }
+
+        /* 비디오 플레이어 */
+        .player-wrapper { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; position: relative; overflow: hidden; }
+        video { width: 100%; height: 100%; }
+
+        /* 채팅 UI */
+        .chat-header { padding: 15px; font-weight: bold; border-bottom: 1px solid #333; font-size: 1.1em; color: var(--main-red); }
+        .chat-msgs { flex: 1; overflow-y: auto; padding: 15px; }
+        .msg-item { display: flex; gap: 10px; margin-bottom: 15px; align-items: flex-start; }
+        .p-img { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #555; }
+        .msg-text { background: #222; padding: 8px 12px; border-radius: 0 12px 12px 12px; font-size: 14px; }
+
+        /* 버튼 */
+        button { background: var(--main-red); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #555; }
+        .btn-upload { background: #333; margin-top: 10px; }
+
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-<div id="chat-window"></div>
-<div id="input-area" style="padding: 15px;">
-    <input type="text" id="ai-input" placeholder="메시지를 입력하거나 '사과는 맛있는 과일이야'라고 가르쳐주세요!" onkeypress="if(event.keyCode==13) talk()">
-    <button onclick="talk()">전송</button>
+<div class="container">
+    <main class="video-content">
+        <h1 style="color: var(--main-red); margin-top: 0;">★ Star Video</h1>
+
+        <div id="auth-section" class="auth-card">
+            <h3>시작하기</h3>
+            <div class="input-row">
+                <input type="email" id="email" placeholder="이메일">
+                <input type="password" id="pw" placeholder="비밀번호">
+                <input type="text" id="nick" placeholder="닉네임 (가입 시)">
+                <label style="font-size: 12px; color: #aaa;">프로필 이미지 선택:</label>
+                <input type="file" id="p-file" accept="image/*">
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="btn-signup" style="flex:1">회원가입</button>
+                <button id="btn-login" style="flex:1; background:#444;">로그인</button>
+            </div>
+        </div>
+
+        <div id="video-section" class="hidden">
+            <div class="player-wrapper">
+                <video id="v-player" controls></video>
+                <div id="v-empty" style="padding: 40px; text-align: center;">영상을 업로드해 주세요!</div>
+            </div>
+            <div class="auth-card" style="margin-top:20px;">
+                <h4>새 영상 업로드</h4>
+                <input type="file" id="v-file" accept="video/*" style="margin-bottom:10px;">
+                <button id="btn-v-upload" class="btn-upload">업로드 시작</button>
+            </div>
+        </div>
+    </main>
+
+    <aside class="chat-sidebar">
+        <div class="chat-header">실시간 채팅</div>
+        <div id="chat-msgs" class="chat-msgs"></div>
+        <div style="padding: 15px; border-top: 1px solid #333; display: flex; gap: 5px;">
+            <input type="text" id="chat-input" style="flex:1" placeholder="메시지 입력...">
+            <button id="btn-chat-send">전송</button>
+        </div>
+    </aside>
 </div>
 
-<script>
-    // 1. Firebase 설정 (사용자님의 D서버 정보로 자동 연결됨을 가정)
-    const firebaseConfig = {
-        databaseURL: "https://gun-game-90491-default-rtdb.firebaseio.com/" 
-    };
-    
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig, "dServer");
-    }
-    const dRdb = firebase.app("dServer").database();
-    const currentUser = localStorage.getItem('dual_user_id') || "guest_user"; // 테스트용 ID
-    let memory = {};
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+    import { getDatabase, ref, push, onChildAdded, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-database.js";
+    import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
 
-    // 2. D서버에서 기존 지식 불러오기
-    dRdb.ref(`collections/${currentUser}/ai_memory`).on('value', (snapshot) => {
-        memory = snapshot.val() || {};
-        console.log("지식 로드 완료:", Object.keys(memory).length, "개");
+    const firebaseConfig = {
+        apiKey: "AIzaSyCsYKlmfTcrkFFW3TLYd8Y-iYnb9XDkiwo",
+        authDomain: "fir-3ae8b.firebaseapp.com",
+        databaseURL: "https://fir-3ae8b-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "fir-3ae8b",
+        storageBucket: "fir-3ae8b.firebasestorage.app",
+        messagingSenderId: "523373890705",
+        appId: "1:523373890705:web:103d78dfc6a148d3988330"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+    const storage = getStorage(app);
+
+    // --- 회원가입 ---
+    document.getElementById('btn-signup').onclick = async () => {
+        const email = document.getElementById('email').value;
+        const pw = document.getElementById('pw').value;
+        const nick = document.getElementById('nick').value;
+        const pFile = document.getElementById('p-file').files[0];
+
+        if(!pFile || !nick) return alert("닉네임과 프로필 사진을 선택하세요!");
+
+        try {
+            const res = await createUserWithEmailAndPassword(auth, email, pw);
+            const imgRef = sRef(storage, `profiles/${res.user.uid}`);
+            await uploadBytes(imgRef, pFile);
+            const photoURL = await getDownloadURL(imgRef);
+
+            await updateProfile(res.user, { displayName: nick, photoURL: photoURL });
+            location.reload();
+        } catch(e) { alert(e.message); }
+    };
+
+    // --- 로그인 ---
+    document.getElementById('btn-login').onclick = () => {
+        const email = document.getElementById('email').value;
+        const pw = document.getElementById('pw').value;
+        signInWithEmailAndPassword(auth, email, pw).catch(e => alert(e.message));
+    };
+
+    // 로그인 상태 감지
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('video-section').classList.remove('hidden');
+        }
     });
 
-    // 3. 말풍선 추가 함수
-    function addBubble(text, type) {
-        const win = document.getElementById('chat-window');
-        const div = document.createElement('div');
-        div.className = `bubble ${type}`;
-        div.innerText = text;
-        win.appendChild(div);
-        win.scrollTop = win.scrollHeight;
-    }
+    // --- 채팅 ---
+    document.getElementById('btn-chat-send').onclick = () => {
+        const text = document.getElementById('chat-input').value;
+        if (!auth.currentUser || !text) return;
+        push(ref(db, 'chats'), {
+            name: auth.currentUser.displayName,
+            profile: auth.currentUser.photoURL,
+            msg: text,
+            time: serverTimestamp()
+        });
+        document.getElementById('chat-input').value = "";
+    };
 
-    // 4. 핵심 대화 엔진 (통합본)
-    function talk() {
-        const input = document.getElementById('ai-input');
-        const text = input.value.trim();
-        if(!text) return;
+    onChildAdded(ref(db, 'chats'), (data) => {
+        const d = data.val();
+        const box = document.getElementById('chat-msgs');
+        box.innerHTML += `
+            <div class="msg-item">
+                <img src="${d.profile}" class="p-img">
+                <div class="msg-content">
+                    <div style="font-size:11px; color:#888;">${d.name}</div>
+                    <div class="msg-text">${d.msg}</div>
+                </div>
+            </div>`;
+        box.scrollTop = box.scrollHeight;
+    });
 
-        addBubble(text, 'user');
-        input.value = '';
-
-        // [A] 학습 로직 (~는 ~이야 패턴)
-        if (text.includes("는 ") || text.includes("은 ")) {
-            let separator = text.includes("는 ") ? "는 " : "은 ";
-            let parts = text.split(separator);
-            if(parts.length >= 2) {
-                let k = parts[0].trim();
-                let v = parts[1].replace(/[.!]$/, "").trim(); // 마침표 제거
-                
-                // D서버 저장
-                dRdb.ref(`collections/${currentUser}/ai_memory`).update({ [k]: v });
-                addBubble(`${k}에 대해 새로 배웠어! 고마워.`, 'ai');
-                return;
-            }
-        }
-
-        // [B] 대화/검색 로직
-        let answer = null;
-        for (let key in memory) {
-            if (text.includes(key)) {
-                answer = memory[key];
-                break;
-            }
-        }
-
-        // [C] 답변 출력
-        setTimeout(() => {
-            if (answer) {
-                const deco = ["음, ", "제 생각에는 ", "알고 계신가요? ", "네! "];
-                const finalMsg = deco[Math.floor(Math.random()*deco.length)] + answer;
-                addBubble(finalMsg, 'ai');
-            } else {
-                addBubble(`'${text}'에 대해서는 아직 배운 적이 없어. 'ㅇㅇ은 ㅇㅇ이야'라고 가르쳐줄래?`, 'ai');
-            }
-        }, 500);
-    }
-
-    // 초기 환영 메시지
-    window.onload = () => addBubble("안녕! 나는 D서버의 지식을 사용하는 똑똑한 AI야. 무엇이든 물어봐!", "ai");
+    // --- 영상 업로드 ---
+    document.getElementById('btn-v-upload').onclick = async () => {
+        const file = document.getElementById('v-file').files[0];
+        if(!file) return;
+        
+        const vRef = sRef(storage, `videos/${Date.now()}_${file.name}`);
+        alert("업로드 중...");
+        await uploadBytes(vRef, file);
+        const url = await getDownloadURL(vRef);
+        
+        const player = document.getElementById('v-player');
+        player.src = url;
+        document.getElementById('v-empty').classList.add('hidden');
+        alert("성공!");
+    };
 </script>
-
 </body>
 </html>
